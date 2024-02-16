@@ -1,0 +1,87 @@
+version: "3.4"
+services:
+  backend:
+    image: tillsteinbach/vwsfriend
+    restart: unless-stopped
+    environment:
+      - VWSFRIEND_USERNAME
+      - VWSFRIEND_PASSWORD
+      - VWSFRIEND_PORT=4000
+      - WECONNECT_USER
+      - WECONNECT_PASSWORD
+      - WECONNECT_SPIN
+      - WECONNECT_INTERVAL
+      - DATABASE_URL=postgresql://vwsfriend:vwsfriend@db:5432/vwsfriend
+      - ADDITIONAL_PARAMETERS=--with-database
+    volumes:
+      - backend_data:/config
+    labels:
+      backups: "true"
+    dns:
+      - "1.1.1.1"
+      - "1.0.0.1"
+    networks:
+      default:
+      proxy_apps:
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=vwsfriend
+      - POSTGRES_PASSWORD=vwsfriend
+      - POSTGRES_DB=vwsfriend
+    labels:
+      backups: "true"
+    dns:
+      - "1.1.1.1"
+      - "1.0.0.1"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -p 5432 --username=vwsfriend --dbname=vwsfriend"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: tillsteinbach/vwsfriend-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${VWSFRIEND_USERNAME}
+      - GF_SECURITY_ADMIN_PASSWORD=${VWSFRIEND_PASSWORD}
+      - GF_SERVER_HTTP_PORT=3000
+      - DB_USER=vwsfriend
+      - DB_PASSWORD=vwsfriend
+      - DB_HOSTNAME=db
+      - DB_PORT=5432
+      - DB_NAME=vwsfriend
+      - VWSFRIEND_USERNAME
+      - VWSFRIEND_PASSWORD
+      - VWSFRIEND_HOSTNAME=backend
+      - VWSFRIEND_PORT=4000
+    volumes:
+      - app_data:/var/lib/grafana
+    networks:
+      default:
+      proxy_apps:
+    labels:
+      backups: "true"
+    dns:
+      - "1.1.1.1"
+      - "1.0.0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "(wget -qO- http://localhost:3000/api/health | grep '\"database\": \"ok\"' -q) || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+networks:
+  proxy_apps:
+    name: proxy_apps
+    external: true
+
+volumes:
+  backend_data:
+  db_data:
+  app_data:
