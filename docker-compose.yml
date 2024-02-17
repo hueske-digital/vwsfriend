@@ -15,8 +15,6 @@ services:
       - ADDITIONAL_PARAMETERS=--with-database
     volumes:
       - backend_data:/config
-    labels:
-      backups: "true"
     dns:
       - "1.1.1.1"
       - "1.0.0.1"
@@ -31,18 +29,30 @@ services:
       - POSTGRES_USER=vwsfriend
       - POSTGRES_PASSWORD=vwsfriend
       - POSTGRES_DB=vwsfriend
-    labels:
-      backups: "true"
     dns:
       - "1.1.1.1"
       - "1.0.0.1"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - $PWD/backup.sh:/scripts/backup.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -p 5432 --username=vwsfriend --dbname=vwsfriend"]
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.backupcron.schedule: "0 0 1 * * *"
+      ofelia.job-exec.backupcron.command: "sh /scripts/backup.sh"
+
+  cron:
+    image: mcuadros/ofelia:latest
+    depends_on:
+      - db
+    command: daemon --docker -f label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   app:
     image: tillsteinbach/vwsfriend-grafana
@@ -65,8 +75,6 @@ services:
     networks:
       default:
       proxy_apps:
-    labels:
-      backups: "true"
     dns:
       - "1.1.1.1"
       - "1.0.0.1"
