@@ -15,9 +15,6 @@ services:
       - ADDITIONAL_PARAMETERS=--with-database
     volumes:
       - backend_data:/config
-    dns:
-      - "1.1.1.1"
-      - "1.0.0.1"
     networks:
       default:
       proxy_apps:
@@ -29,9 +26,6 @@ services:
       - POSTGRES_USER=vwsfriend
       - POSTGRES_PASSWORD=vwsfriend
       - POSTGRES_DB=vwsfriend
-    dns:
-      - "1.1.1.1"
-      - "1.0.0.1"
     volumes:
       - db_data:/var/lib/postgresql/data
       - $PWD/backup.sh:/scripts/backup.sh:ro
@@ -41,18 +35,10 @@ services:
       timeout: 5s
       retries: 5
     labels:
+      ofelia.restart: "true"
       ofelia.enabled: "true"
-      ofelia.job-exec.backupcron.schedule: "0 0 1 * * *"
-      ofelia.job-exec.backupcron.command: "sh /scripts/backup.sh"
-
-  cron:
-    image: mcuadros/ofelia:latest
-    depends_on:
-      - db
-    command: daemon --docker -f label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      ofelia.job-exec.vwsfrienddbbackup.schedule: "0 0 1 * * *"
+      ofelia.job-exec.vwsfrienddbbackup.command: "sh -c 'pg_dumpall -U vwsfriend -f /var/lib/postgresql/data/backup.sql'"
 
   app:
     image: tillsteinbach/vwsfriend-grafana
@@ -75,9 +61,6 @@ services:
     networks:
       default:
       proxy_apps:
-    dns:
-      - "1.1.1.1"
-      - "1.0.0.1"
     healthcheck:
       test: ["CMD-SHELL", "(wget -qO- http://localhost:3000/api/health | grep '\"database\": \"ok\"' -q) || exit 1"]
       interval: 60s
