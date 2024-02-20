@@ -28,7 +28,6 @@ services:
       - POSTGRES_DB=vwsfriend
     volumes:
       - db_data:/var/lib/postgresql/data
-      - $PWD/backup.sh:/scripts/backup.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -p 5432 --username=vwsfriend --dbname=vwsfriend"]
       interval: 10s
